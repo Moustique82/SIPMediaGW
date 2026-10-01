@@ -2,11 +2,16 @@
 
 import sys
 import os
+import time
 import traceback
 from browsing import Browsing
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+
+# Texts of the button that enters the meeting from the prejoin screen
+JOIN_TEXTS = ("Participer", "Participer maintenant", "Demander à participer", "Join now", "Ask to join")
 
 
 class Googlemeet(Browsing):
@@ -55,6 +60,30 @@ class Googlemeet(Browsing):
             )
         except Exception:
             print("Google Meet: name input not found, continuing anyway", flush=True)
+
+    def join(self):
+        super().join()
+        # Meet ignores the synthetic click the connector script sends to its join
+        # button (seen on 1 Oct 2026: name filled, "Participer" never pressed).
+        # Press it through WebDriver, which sends real input events, until the
+        # leave button shows that the gateway is in the call.
+        xpath = " | ".join('//button[normalize-space(.)="{}"]'.format(t) for t in JOIN_TEXTS)
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            try:
+                if self.driver.find_elements(By.CSS_SELECTOR, "button[jsname='CQylAd']"):
+                    return
+                buttons = [b for b in self.driver.find_elements(By.XPATH, xpath)
+                           if b.is_displayed() and b.is_enabled()]
+                if buttons:
+                    ActionChains(self.driver).move_to_element(buttons[0]).click().perform()
+                    print("Google Meet: join button pressed", flush=True)
+                    time.sleep(5)
+                    continue
+            except Exception as e:
+                print("Google Meet: join button not pressed: {}".format(e), flush=True)
+            time.sleep(1)
+        print("Google Meet: still on the prejoin screen after 60 s", flush=True)
 
     def chatHandler(self):
         pass
