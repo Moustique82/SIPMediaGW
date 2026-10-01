@@ -178,8 +178,8 @@ class Googlemeet extends UIHelper {
             // "participer" or "join" also hits "Autres options pour participer".
             console.log('[INFO] Looking for join button...');
             const joinButton = await this.waitForText(
-                ['participer', 'participer maintenant', 'demander à participer',
-                 'join now', 'join', 'ask to join'],
+                ['participer à la réunion', 'participer', 'participer maintenant', 'demander à participer',
+                 'join now', 'join meeting', 'join', 'ask to join'],
                 30000
             );
             if (!joinButton) {

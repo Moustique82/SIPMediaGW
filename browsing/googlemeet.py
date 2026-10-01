@@ -12,7 +12,8 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 
 # Texts of the button that enters the meeting from the prejoin screen
-JOIN_TEXTS = ("Participer", "Participer maintenant", "Demander à participer", "Join now", "Ask to join")
+JOIN_TEXTS = ("Participer à la réunion", "Participer", "Participer maintenant", "Demander à participer",
+              "Join now", "Join meeting", "Ask to join")
 
 
 class Googlemeet(Browsing):
