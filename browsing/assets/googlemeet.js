@@ -134,6 +134,15 @@ class Googlemeet extends UIHelper {
 
     async join() {
         try {
+            // googlemeet.py has already gone through the prejoin screen with real
+            // input events: if the call is on, there is nothing left to do here
+            if (document.querySelector('button[jsname="CQylAd"]')) {
+                this.startPopupWatcher();
+                this.blockerFocus();
+                this.joined = true;
+                console.log('[✓] Already in the call (prejoin done by the gateway)');
+                return;
+            }
             // Step 1: Fill in display name
             // Use aria-label selector — the #cXX ID is dynamically generated per session
             console.log('[INFO] Waiting for name input...');
