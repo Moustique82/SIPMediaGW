@@ -37,6 +37,51 @@ class Googlemeet extends UIHelper {
     }
 
     /**
+     * Wait for a visible, enabled control whose text is exactly one of the given
+     * labels (case-insensitive). Exact match on purpose: "Participer" must not
+     * pick "Autres options pour participer".
+     *
+     * @param {string[]} labels - Accepted texts, lower case
+     * @param {number} timeout  - Milliseconds before giving up (resolves null)
+     */
+    async waitForText(labels, timeout) {
+        const deadline = Date.now() + timeout;
+        while (Date.now() < deadline) {
+            const candidates = document.querySelectorAll('button, [role="button"]');
+            for (const el of candidates) {
+                const text = (el.innerText || '').trim().toLowerCase();
+                const visible = el.offsetHeight > 0 && el.offsetWidth > 0 &&
+                                window.getComputedStyle(el).visibility !== 'hidden';
+                if (visible && !el.disabled && el.getAttribute('aria-disabled') !== 'true' &&
+                    labels.includes(text)) {
+                    return el;
+                }
+            }
+            await new Promise(res => setTimeout(res, 250));
+        }
+        return null;
+    }
+
+    /**
+     * The prejoin screen may ask whether others should see and hear you
+     * ("Utiliser le micro et l'appareil photo" / "Use microphone and camera").
+     * Without that click the gateway enters with neither: answer it whenever it shows.
+     */
+    async allowMicAndCamera(timeout) {
+        const btn = await this.waitForText(
+            ["utiliser le micro et l'appareil photo", "utiliser le micro et l’appareil photo",
+             'use microphone and camera'],
+            timeout
+        );
+        if (btn) {
+            btn.click();
+            console.log('[✓] Microphone and camera allowed');
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Dismiss Google Meet safety/info popups.
      * - "Meet keeps you safe" -> "Got it" button (exact text match)
      * - "Others may see your video differently" -> div.VfPpkd-T0kwCb button (CSS fallback)
@@ -104,6 +149,9 @@ class Googlemeet extends UIHelper {
                 return;
             }
 
+            // The microphone/camera prompt can show before or after the name field
+            await this.allowMicAndCamera(3000);
+
             // Use native setter to trigger React/framework input events
             const nativeSet = Object.getOwnPropertyDescriptor(
                 window.HTMLInputElement.prototype, 'value'
@@ -113,30 +161,21 @@ class Googlemeet extends UIHelper {
             nameInput.dispatchEvent(new Event('change', { bubbles: true }));
             console.log('[✓] Name filled:', this.displayName);
 
+            await this.allowMicAndCamera(5000);
+
             // Step 2: Click "Join" / "Ask to join" button
-            // CSS selector div.XCoPyb confirmed stable across multiple Recorder sessions
+            // Found by its exact text: the div.XCoPyb wrapper is a generated class that
+            // no longer matches (Recorder session of 1 Oct 2026), and a partial match on
+            // "participer" or "join" also hits "Autres options pour participer".
             console.log('[INFO] Looking for join button...');
-            let joinButton;
-            try {
-                joinButton = await this.waitForElement(
-                    "div.XCoPyb button",
-                    { clickable: true },
-                    30000
-                );
-            } catch (e) {
-                console.warn('[WARN] div.XCoPyb not found, trying text fallback...');
-                const all = [...document.querySelectorAll('button')];
-                joinButton = all.find(b => {
-                    const text = (b.innerText || '').trim().toLowerCase();
-                    return text.includes('participer') ||
-                           text.includes('join') ||
-                           text.includes('demander') ||
-                           text.includes('ask');
-                });
-                if (!joinButton) {
-                    console.error('[✗] Join button not found');
-                    return;
-                }
+            const joinButton = await this.waitForText(
+                ['participer', 'participer maintenant', 'demander à participer',
+                 'join now', 'join', 'ask to join'],
+                30000
+            );
+            if (!joinButton) {
+                console.error('[✗] Join button not found');
+                return;
             }
 
             joinButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
