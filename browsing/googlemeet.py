@@ -29,6 +29,14 @@ class Googlemeet(Browsing):
         # bot signal. Only the automation flag is turned off here.
         if self.chromeOptions:
             self.chromeOptions.add_argument('--disable-blink-features=AutomationControlled')
+            # Test (1 Oct 2026): Meet turns the gateway away after the join button while
+            # a normal browser on the same network gets in. These two switches weaken the
+            # page's security in ways a page can detect; they are dropped for Meet only.
+            # Known side effect: the in-meeting menu stylesheet (file://) no longer loads.
+            for arg in ('--disable-web-security', '--disable-site-isolation-trials'):
+                while arg in self.chromeOptions.arguments:
+                    self.chromeOptions.arguments.remove(arg)
+            print("Google Meet: browser switches {}".format(" ".join(self.chromeOptions.arguments)), flush=True)
 
     def cdp(self, cmd, params):
         # webdriver.Remote has no execute_cdp_cmd: declare chromedriver's endpoint
